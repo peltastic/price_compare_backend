@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 
 // Generate JWT token
 const generateToken = (user: IUser) => {
-  return jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+  return jwt.sign({ id: user._id }, JWT_SECRET, {
     expiresIn: "1h",
   });
 };
@@ -28,43 +28,48 @@ export const register = async (req: Request, res: Response): Promise<any> => {
     });
     await user.save();
     res.status(201).json({
-        message: `{role} registered successfully`,
-        token: generateToken(user),
-        data: {
-            user: {
-                id: user._id,
-            }
-        }
-      });
+      message: `user registered successfully`,
+      token: generateToken(user),
+      data: {
+        user: {
+          id: user._id,
+        },
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: "Error registering user" });
   }
 };
 
-
-export const login = async (req: Request , res: Response): Promise<any> => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
-        if (!user || !(await user.comparePassword(password))) {
-          return res.status(400).json({ message: "Invalid credentials" });
-        }
-        res.json({ token: generateToken(user) });
-      } catch (error) {
-        res.status(500).json({ message: "Error logging in" });
-      }
-}
-
+export const login = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+    res.json({
+      token: generateToken(user),
+      data: {
+        user: {
+          id: user._id,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error logging in" });
+  }
+};
 
 export const getProfile = async (
-    req: AuthRequest,
-    res: Response
-  ): Promise<any> => {
-    try {
-      const user = await User.findById(req.userId).select("password");
-      if (!user) return res.status(404).json({ message: "User not found" });
-      res.json(user);
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching profile" });
-    }
-  };
+  req: AuthRequest,
+  res: Response
+): Promise<any> => {
+  try {
+    const user = await User.findById(req.userId).select(["email", "location"]);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching profile" });
+  }
+};
