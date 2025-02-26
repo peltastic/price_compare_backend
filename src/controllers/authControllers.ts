@@ -53,6 +53,9 @@ export const login = async (req: Request, res: Response): Promise<any> => {
       data: {
         user: {
           id: user._id,
+          username: user.username,
+          email: user.email,
+
         },
       },
     });
