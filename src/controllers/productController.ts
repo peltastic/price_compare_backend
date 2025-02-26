@@ -49,9 +49,16 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
       const { search, min_rating } = req.query;
       
       const filter: any = {};
+  
       if (search) {
-        filter.product_name = { $regex: search, $options: 'i' };
+        const searchRegex = new RegExp(search.toString().trim(), "i"); // More flexible search
+        filter.$or = [
+          { product_name: searchRegex },
+          // { description: searchRegex }, // Search in description too
+          // { category: searchRegex } // Add category search if applicable
+        ];
       }
+  
       if (min_rating) {
         filter.average_rating = { $gte: Number(min_rating) };
       }
@@ -59,7 +66,7 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
       const products = await Product.find(filter);
       res.status(200).json(products);
     } catch (error) {
-      res.status(500).json({ message: 'Error fetching products', error });
+      res.status(500).json({ message: "Error fetching products", error });
     }
   };
   

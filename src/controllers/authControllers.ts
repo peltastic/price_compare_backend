@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 // Generate JWT token
 const generateToken = (user: IUser) => {
   return jwt.sign({ id: user._id }, JWT_SECRET, {
-    expiresIn: "1h",
+    expiresIn: "7d",
   });
 };
 
