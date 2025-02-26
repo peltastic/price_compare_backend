@@ -32,7 +32,7 @@ const ProductSchema: Schema = new Schema<IProduct>(
     average_rating: { type: Number, default: 0, min: 0, max: 5 },
     store: {
         name: { type: String,  trim: true },
-        website_url: { type: String,rim: true },
+        website_url: { type: String, trim: true },
         location: { type: String, trim: true },
       },
   },

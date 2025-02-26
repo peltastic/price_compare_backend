@@ -17,14 +17,14 @@ const generateToken = (user: IUser) => {
 
 export const register = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { email, password, location } = req.body;
+    const { email, password, username } = req.body;
     const userExists = await User.findOne({ email });
     if (userExists)
       return res.status(400).json({ message: "User already exists" });
     const user = new User({
       email,
       password,
-      location,
+      username,
     });
     await user.save();
     res.status(201).json({
@@ -66,7 +66,7 @@ export const getProfile = async (
   res: Response
 ): Promise<any> => {
   try {
-    const user = await User.findById(req.userId).select(["email", "location"]);
+    const user = await User.findById(req.userId).select(["email", "username"]);
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (error) {
