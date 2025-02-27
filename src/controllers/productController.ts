@@ -18,21 +18,17 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
       store
     } = req.body;
 
-    // ✅ Validate required fields
     if (!product_id || !product_name || !price || !category || !url || !store) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // ✅ Check if the product already exists (Prevent duplicates)
     const existingProduct = await Product.findOne({ product_id });
     if (existingProduct) {
       return res.status(409).json({ message: "Product already exists" });
     }
 
-    // ✅ Convert availability to Boolean
-    const isAvailable = availability === "In Stock" ? true : false;
+    const isAvailable = availability === "In Stock";
 
-    // ✅ Create a new product
     const product = new Product({
       product_id,
       product_name,
@@ -47,7 +43,6 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
       store
     });
 
-    // ✅ Save the product to the database
     await product.save();
     res.status(201).json({ message: "Product created successfully", product });
 
@@ -61,20 +56,17 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
   try {
     const products = req.body;
 
-    // ✅ Validate Request
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({ message: "Invalid or empty product list" });
     }
 
-    // ✅ Format Data Before Saving
     const formattedProducts = products.map((product) => ({
       ...product,
-      availability: product.availability === "In Stock" ? true : false,
+      availability: product.availability === "In Stock",
       average_rating: parseFloat(product.average_rating) || 0,
       number_of_reviews: parseInt(product.number_of_reviews) || 0,
     }));
 
-    // ✅ Remove duplicates (Prevent inserting existing products)
     const productIds = formattedProducts.map((product) => product.product_id);
     const existingProducts = await Product.find({ product_id: { $in: productIds } });
     const existingProductIds = existingProducts.map((p) => p.product_id);
@@ -85,7 +77,6 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
       return res.status(409).json({ message: "All products already exist" });
     }
 
-    // ✅ Insert the new products
     await Product.insertMany(newProducts);
     res.status(201).json({ message: "Products added successfully", added: newProducts.length });
 
@@ -97,48 +88,17 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
 // ✅ Get All Products with Search & Filters
 export const getProducts = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { search, min_rating, location } = req.query;
-    const filter: any = {};
+    const searchQuery = req.query.query as string;
+    let filter: any = {};
 
-    // ✅ Flexible search across multiple fields
-    if (search) {
-      const searchRegex = new RegExp(search.toString().trim(), "i");
-      filter.$or = [
-        { product_name: searchRegex },
-        { category: searchRegex },
-        { brand: searchRegex }
-      ];
+    if (searchQuery) {
+      filter.product_name = { $regex: searchQuery, $options: "i" };
     }
 
-    // ✅ Filter by minimum rating (optional)
-    if (min_rating) {
-      filter.average_rating = { $gte: Number(min_rating) };
-    }
-
-    // ✅ Location filter (Allow Nigeria-wide products)
-    if (location && location !== "Nigeria") {
-      filter.$or = [
-        { "store.location": location },
-        { "store.location": "Nigeria" } // Include nationwide products
-      ];
-    }
-
-    // ✅ Fetch products and sort by price
-    const products = await Product.find(filter).sort({ price: 1 });
-
-    // ✅ Group products by product_name for price comparison
-    const groupedProducts: Record<string, any[]> = {};
-    products.forEach((product) => {
-      if (!groupedProducts[product.product_name]) {
-        groupedProducts[product.product_name] = [];
-      }
-      groupedProducts[product.product_name].push(product);
-    });
-
-    res.status(200).json(groupedProducts);
-
+    const products = await Product.find(filter);
+    res.json(products);
   } catch (error: unknown) {
-    res.status(500).json({ message: "Error fetching products", error: (error as Error).message });
+    res.status(500).json({ message: "Server Error", error: (error as Error).message });
   }
 };
 
@@ -165,9 +125,8 @@ export const updateProduct = async (req: Request, res: Response): Promise<any> =
     const { id } = req.params;
     const updates = req.body;
 
-    // ✅ Ensure availability is stored as Boolean
     if (updates.availability !== undefined) {
-      updates.availability = updates.availability === "In Stock" ? true : false;
+      updates.availability = updates.availability === "In Stock";
     }
 
     const updatedProduct = await Product.findOneAndUpdate(
