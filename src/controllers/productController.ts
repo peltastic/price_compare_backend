@@ -88,12 +88,11 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
 // ✅ Get All Products with Search & Filters
 export const getProducts = async (req: Request, res: Response): Promise<any> => {
   try {
-    const searchQuery = req.query.query as string; // Extract search term
+    const searchQuery = req.query.query as string;
     if (!searchQuery) {
       return res.status(400).json({ message: "Missing search query" });
     }
 
-    // ✅ STRICT SEARCH: Match only relevant results
     const searchRegex = new RegExp(searchQuery.trim(), "i");
     const filter = {
       $or: [
@@ -103,23 +102,14 @@ export const getProducts = async (req: Request, res: Response): Promise<any> => 
       ]
     };
 
-    // ✅ Fetch ONLY matching products from DB
     const products = await Product.find(filter).sort({ price: 1 });
 
     if (products.length === 0) {
       return res.status(404).json({ message: "No products found for your search" });
     }
 
-    // ✅ Group products by name (for price comparison)
-    const groupedProducts: Record<string, any[]> = {};
-    products.forEach((product) => {
-      if (!groupedProducts[product.product_name]) {
-        groupedProducts[product.product_name] = [];
-      }
-      groupedProducts[product.product_name].push(product);
-    });
-
-    res.status(200).json(groupedProducts);
+    // Flatten response to return an array of products instead of an object
+    res.status(200).json(products);
 
   } catch (error: unknown) {
     res.status(500).json({ message: "Server Error", error: (error as Error).message });
