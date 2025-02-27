@@ -89,32 +89,38 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
 export const getProducts = async (req: Request, res: Response): Promise<any> => {
   try {
     const searchQuery = req.query.query as string;
-    if (!searchQuery) {
-      return res.status(400).json({ message: "Missing search query" });
-    }
+    const categoryFilter = req.query.category as string;
 
-    const searchRegex = new RegExp(searchQuery.trim(), "i");
-    const filter = {
-      $or: [
+    const filter: any = {};
+
+    // If 'query' is provided, search product_name, brand, or category
+    if (searchQuery) {
+      const searchRegex = new RegExp(searchQuery.trim(), "i");
+      filter.$or = [
         { product_name: searchRegex },
         { brand: searchRegex },
         { category: searchRegex }
-      ]
-    };
+      ];
+    }
+
+    // If 'category' is provided, filter by exact category
+    if (categoryFilter) {
+      filter.category = categoryFilter.trim();
+    }
 
     const products = await Product.find(filter).sort({ price: 1 });
 
     if (products.length === 0) {
-      return res.status(404).json({ message: "No products found for your search" });
+      return res.status(404).json({ message: "No products found" });
     }
 
-    // Flatten response to return an array of products instead of an object
     res.status(200).json(products);
 
   } catch (error: unknown) {
     res.status(500).json({ message: "Server Error", error: (error as Error).message });
   }
 };
+
 
 // ✅ Get a Single Product by ID
 export const getProductById = async (req: Request, res: Response): Promise<any> => {
