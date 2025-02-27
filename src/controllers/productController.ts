@@ -29,6 +29,9 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
       return res.status(409).json({ message: "Product already exists" });
     }
 
+    // ✅ Convert availability to Boolean
+    const isAvailable = availability === "In Stock" ? true : false;
+
     // ✅ Create a new product
     const product = new Product({
       product_id,
@@ -36,9 +39,9 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
       category,
       brand: brand || "Unknown",
       price,
-      availability: availability !== undefined ? availability : true,
-      average_rating: average_rating || 0,
-      number_of_reviews: number_of_reviews || 0,
+      availability: isAvailable,
+      average_rating: parseFloat(average_rating) || 0,
+      number_of_reviews: parseInt(number_of_reviews) || 0,
       url,
       image_url: image_url || "",
       store
@@ -56,19 +59,27 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
 // ✅ Create Multiple Products (Bulk Insert)
 export const createProducts = async (req: Request, res: Response): Promise<any> => {
   try {
-    const products = req.body; // Expecting an array of products
+    const products = req.body;
 
     // ✅ Validate Request
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({ message: "Invalid or empty product list" });
     }
 
+    // ✅ Format Data Before Saving
+    const formattedProducts = products.map((product) => ({
+      ...product,
+      availability: product.availability === "In Stock" ? true : false,
+      average_rating: parseFloat(product.average_rating) || 0,
+      number_of_reviews: parseInt(product.number_of_reviews) || 0,
+    }));
+
     // ✅ Remove duplicates (Prevent inserting existing products)
-    const productIds = products.map((product) => product.product_id);
+    const productIds = formattedProducts.map((product) => product.product_id);
     const existingProducts = await Product.find({ product_id: { $in: productIds } });
     const existingProductIds = existingProducts.map((p) => p.product_id);
 
-    const newProducts = products.filter((p) => !existingProductIds.includes(p.product_id));
+    const newProducts = formattedProducts.filter((p) => !existingProductIds.includes(p.product_id));
 
     if (newProducts.length === 0) {
       return res.status(409).json({ message: "All products already exist" });
@@ -86,7 +97,7 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
 // ✅ Get All Products with Search & Filters
 export const getProducts = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { search } = req.query;
+    const { search, min_rating, location } = req.query;
     const filter: any = {};
 
     // ✅ Flexible search across multiple fields
@@ -99,10 +110,23 @@ export const getProducts = async (req: Request, res: Response): Promise<any> => 
       ];
     }
 
-    // ✅ Fetch products separately for each store, sorted by price
+    // ✅ Filter by minimum rating (optional)
+    if (min_rating) {
+      filter.average_rating = { $gte: Number(min_rating) };
+    }
+
+    // ✅ Location filter (Allow Nigeria-wide products)
+    if (location && location !== "Nigeria") {
+      filter.$or = [
+        { "store.location": location },
+        { "store.location": "Nigeria" } // Include nationwide products
+      ];
+    }
+
+    // ✅ Fetch products and sort by price
     const products = await Product.find(filter).sort({ price: 1 });
 
-    // ✅ Group products by product_name to structure them for price comparison
+    // ✅ Group products by product_name for price comparison
     const groupedProducts: Record<string, any[]> = {};
     products.forEach((product) => {
       if (!groupedProducts[product.product_name]) {
@@ -112,6 +136,7 @@ export const getProducts = async (req: Request, res: Response): Promise<any> => 
     });
 
     res.status(200).json(groupedProducts);
+
   } catch (error: unknown) {
     res.status(500).json({ message: "Error fetching products", error: (error as Error).message });
   }
@@ -139,6 +164,11 @@ export const updateProduct = async (req: Request, res: Response): Promise<any> =
   try {
     const { id } = req.params;
     const updates = req.body;
+
+    // ✅ Ensure availability is stored as Boolean
+    if (updates.availability !== undefined) {
+      updates.availability = updates.availability === "In Stock" ? true : false;
+    }
 
     const updatedProduct = await Product.findOneAndUpdate(
       { product_id: id },
