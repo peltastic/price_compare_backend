@@ -86,7 +86,7 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
 // ✅ Get All Products with Search & Filters
 export const getProducts = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { search, min_rating } = req.query;
+    const { search } = req.query;
     const filter: any = {};
 
     // ✅ Flexible search across multiple fields
@@ -99,15 +99,19 @@ export const getProducts = async (req: Request, res: Response): Promise<any> => 
       ];
     }
 
-    // ✅ Filter by minimum rating (optional)
-    if (min_rating) {
-      filter.average_rating = { $gte: Number(min_rating) };
-    }
+    // ✅ Fetch products separately for each store, sorted by price
+    const products = await Product.find(filter).sort({ price: 1 });
 
-    // ✅ Fetch matching products
-    const products = await Product.find(filter);
-    res.status(200).json(products);
+    // ✅ Group products by product_name to structure them for price comparison
+    const groupedProducts: Record<string, any[]> = {};
+    products.forEach((product) => {
+      if (!groupedProducts[product.product_name]) {
+        groupedProducts[product.product_name] = [];
+      }
+      groupedProducts[product.product_name].push(product);
+    });
 
+    res.status(200).json(groupedProducts);
   } catch (error: unknown) {
     res.status(500).json({ message: "Error fetching products", error: (error as Error).message });
   }
