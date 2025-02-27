@@ -1,6 +1,6 @@
 import express from "express";
+import cors from "cors";  // ✅ Import CORS
 import dotenv from "dotenv";
-import cors from "cors";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes";
 import productRoutes from "./routes/productsRoute";
@@ -11,31 +11,29 @@ const app = express();
 const PORT = process.env.PORT || 6000;
 const MONGO_URI = process.env.MONGO_URI;
 
-// ✅ Middleware to handle large JSON payloads
-app.use(express.json({ limit: "50mb" })); // Increase payload limit to 50MB
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-app.use(cors());
+app.use(express.json());
 
-// ✅ Routes
+// ✅ Enable CORS for all requests
+app.use(cors({ origin: "*" }));
+
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 
-// ✅ Check if MONGO_URI is provided
+// Check MongoDB connection
 if (!MONGO_URI) {
   console.error("❌ MONGO_URI is not set in .env file!");
-  process.exit(1); // Stop the server if no database connection
+  process.exit(1);
 }
 
-// ✅ Connect to MongoDB
 mongoose
   .connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err);
-    process.exit(1); // Stop the server if connection fails
+    process.exit(1);
   });
 
-// ✅ Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
