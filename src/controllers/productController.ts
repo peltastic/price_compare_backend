@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Product from "../models/ProductModel";
 
-// ✅ Create a New Product
+// ✅ Create a Single Product
 export const createProduct = async (req: Request, res: Response): Promise<any> => {
   try {
     const {
@@ -46,10 +46,40 @@ export const createProduct = async (req: Request, res: Response): Promise<any> =
 
     // ✅ Save the product to the database
     await product.save();
-
     res.status(201).json({ message: "Product created successfully", product });
-  } catch (error: any) {
-    res.status(500).json({ message: "Error creating product", error: error.message || error });
+
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Error creating product", error: (error as Error).message });
+  }
+};
+
+// ✅ Create Multiple Products (Bulk Insert)
+export const createProducts = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const products = req.body; // Expecting an array of products
+
+    // ✅ Validate Request
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ message: "Invalid or empty product list" });
+    }
+
+    // ✅ Remove duplicates (Prevent inserting existing products)
+    const productIds = products.map((product) => product.product_id);
+    const existingProducts = await Product.find({ product_id: { $in: productIds } });
+    const existingProductIds = existingProducts.map((p) => p.product_id);
+
+    const newProducts = products.filter((p) => !existingProductIds.includes(p.product_id));
+
+    if (newProducts.length === 0) {
+      return res.status(409).json({ message: "All products already exist" });
+    }
+
+    // ✅ Insert the new products
+    await Product.insertMany(newProducts);
+    res.status(201).json({ message: "Products added successfully", added: newProducts.length });
+
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Error adding products", error: (error as Error).message });
   }
 };
 
@@ -77,8 +107,9 @@ export const getProducts = async (req: Request, res: Response): Promise<any> => 
     // ✅ Fetch matching products
     const products = await Product.find(filter);
     res.status(200).json(products);
-  } catch (error: any) {
-    res.status(500).json({ message: "Error fetching products", error: error.message || error });
+
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Error fetching products", error: (error as Error).message });
   }
 };
 
@@ -93,8 +124,9 @@ export const getProductById = async (req: Request, res: Response): Promise<any> 
     }
 
     res.status(200).json(product);
-  } catch (error: any) {
-    res.status(500).json({ message: "Error fetching product", error: error.message || error });
+
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Error fetching product", error: (error as Error).message });
   }
 };
 
@@ -115,8 +147,9 @@ export const updateProduct = async (req: Request, res: Response): Promise<any> =
     }
 
     res.status(200).json({ message: "Product updated successfully", updatedProduct });
-  } catch (error: any) {
-    res.status(500).json({ message: "Error updating product", error: error.message || error });
+
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Error updating product", error: (error as Error).message });
   }
 };
 
@@ -131,7 +164,8 @@ export const deleteProduct = async (req: Request, res: Response): Promise<any> =
     }
 
     res.status(200).json({ message: "Product deleted successfully" });
-  } catch (error: any) {
-    res.status(500).json({ message: "Error deleting product", error: error.message || error });
+
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Error deleting product", error: (error as Error).message });
   }
 };
