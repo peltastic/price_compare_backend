@@ -88,15 +88,39 @@ export const createProducts = async (req: Request, res: Response): Promise<any> 
 // ✅ Get All Products with Search & Filters
 export const getProducts = async (req: Request, res: Response): Promise<any> => {
   try {
-    const searchQuery = req.query.query as string;
-    let filter: any = {};
-
-    if (searchQuery) {
-      filter.product_name = { $regex: searchQuery, $options: "i" };
+    const searchQuery = req.query.query as string; // Extract search term
+    if (!searchQuery) {
+      return res.status(400).json({ message: "Missing search query" });
     }
 
-    const products = await Product.find(filter);
-    res.json(products);
+    // ✅ STRICT SEARCH: Match only relevant results
+    const searchRegex = new RegExp(searchQuery.trim(), "i");
+    const filter = {
+      $or: [
+        { product_name: searchRegex },
+        { brand: searchRegex },
+        { category: searchRegex }
+      ]
+    };
+
+    // ✅ Fetch ONLY matching products from DB
+    const products = await Product.find(filter).sort({ price: 1 });
+
+    if (products.length === 0) {
+      return res.status(404).json({ message: "No products found for your search" });
+    }
+
+    // ✅ Group products by name (for price comparison)
+    const groupedProducts: Record<string, any[]> = {};
+    products.forEach((product) => {
+      if (!groupedProducts[product.product_name]) {
+        groupedProducts[product.product_name] = [];
+      }
+      groupedProducts[product.product_name].push(product);
+    });
+
+    res.status(200).json(groupedProducts);
+
   } catch (error: unknown) {
     res.status(500).json({ message: "Server Error", error: (error as Error).message });
   }
