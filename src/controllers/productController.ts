@@ -90,6 +90,7 @@ export const getProducts = async (req: Request, res: Response): Promise<any> => 
   try {
     const searchQuery = req.query.query as string;
     const categoryFilter = req.query.category as string;
+    const locationFilter = req.query.location as string; // New location filter
 
     const filter: any = {};
 
@@ -106,6 +107,12 @@ export const getProducts = async (req: Request, res: Response): Promise<any> => 
     // If 'category' is provided, filter by exact category
     if (categoryFilter) {
       filter.category = categoryFilter.trim();
+    }
+
+    // If 'location' is provided, filter by store location (case-insensitive match)
+    if (locationFilter) {
+      const locationRegex = new RegExp(locationFilter.trim(), "i");
+      filter["store.location"] = locationRegex;
     }
 
     const products = await Product.find(filter).sort({ price: 1 });
